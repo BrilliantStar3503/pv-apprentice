@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PruVenture Apprentice – Apply Now | Pru Life UK</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red: #C8102E;
+      --dark-red: #8B0000;
+      --light-gray: #F2F2F2;
+      --mid-gray: #E0E0E0;
+      --text: #222;
+      --bot-bg: #F5F5F5;
+      --user-bg: #C8102E;
+      --user-text: #fff;
+    }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #8B0000 0%, #C8102E 60%, #e84060 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 420px;
+      background: #fff;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.35);
+      display: flex;
+      flex-direction: column;
+      height: 92vh;
+      max-height: 780px;
+    }
+
+    /* Header */
+    #header {
+      background: linear-gradient(135deg, #8B0000, #C8102E);
+      color: #fff;
+      padding: 16px 18px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    #header-avatar {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.18);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    #header-info { flex: 1; }
+    #header-info h2 { font-size: 15px; font-weight: 700; line-height: 1.2; }
+    #header-info span { font-size: 11.5px; opacity: 0.85; }
+    #online-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: #4cef7a;
+      display: inline-block;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+
+    /* Progress bar */
+    #progress-wrap {
+      background: #f9f9f9;
+      border-bottom: 1px solid #eee;
+      padding: 8px 18px;
+      flex-shrink: 0;
+    }
+    #progress-label {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 5px;
+      display: flex;
+      justify-content: space-between;
+    }
+    #progress-bar-bg {
+      height: 6px;
+      background: #E0E0E0;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    #progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #8B0000, #C8102E);
+      border-radius: 10px;
+      transition: width 0.5s ease;
+      width: 0%;
+    }
+
+    /* Chat area */
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 14px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      scroll-behavior: smooth;
+    }
+    #chat::-webkit-scrollbar { width: 4px; }
+    #chat::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+
+    /* Bubbles */
+    .bubble-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .bubble-row.bot { justify-content: flex-start; }
+    .bubble-row.user { justify-content: flex-end; }
+
+    .bot-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: linear-gradient(135deg, #8B0000, #C8102E);
+      color: #fff; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .bubble {
+      max-width: 82%;
+      padding: 10px 14px;
+      border-radius: 18px;
+      font-size: 14px;
+      line-height: 1.55;
+      word-wrap: break-word;
+    }
+    .bubble-row.bot .bubble {
+      background: var(--bot-bg);
+      color: var(--text);
+      border-bottom-left-radius: 4px;
+    }
+    .bubble-row.user .bubble {
+      background: var(--user-bg);
+      color: var(--user-text);
+      border-bottom-right-radius: 4px;
+    }
+    .bubble ul { padding-left: 18px; margin-top: 6px; }
+    .bubble ul li { margin-bottom: 4px; }
+    .bubble strong { font-weight: 700; }
+
+    /* Typing indicator */
+    .typing-bubble {
+      background: var(--bot-bg);
+      border-radius: 18px;
+      border-bottom-left-radius: 4px;
+      padding: 12px 16px;
+      display: flex; gap: 5px; align-items: center;
+    }
+    .typing-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #bbb;
+      animation: bounce 1.2s infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%,60%,100% { transform: translateY(0); }
+      30% { transform: translateY(-6px); }
+    }
+
+    /* Input area */
+    #input-area {
+      padding: 10px 12px;
+      border-top: 1px solid #eee;
+      background: #fff;
+      flex-shrink: 0;
+    }
+
+    /* Quick-reply buttons */
+    .qr-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      padding: 4px 0 2px;
+    }
+    .qr-btn {
+      padding: 9px 16px;
+      border-radius: 22px;
+      border: 2px solid var(--red);
+      background: #fff;
+      color: var(--red);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .qr-btn:hover { background: var(--red); color: #fff; }
+
+    /* Text input */
+    .text-input-wrap {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .text-input-wrap input {
+      flex: 1;
+      border: 2px solid #E0E0E0;
+      border-radius: 22px;
+      padding: 10px 16px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .text-input-wrap input:focus { border-color: var(--red); }
+    .send-btn {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--red);
+      border: none;
+      color: #fff;
+      font-size: 17px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.18s;
+    }
+    .send-btn:hover { background: var(--dark-red); }
+
+    /* Checkbox group */
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 4px 0;
+    }
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 13.5px;
+      cursor: pointer;
+      color: #333;
+    }
+    .checkbox-group input[type=checkbox] {
+      accent-color: var(--red);
+      width: 17px; height: 17px;
+    }
+    .confirm-btn {
+      margin-top: 10px;
+      width: 100%;
+      padding: 10px;
+      border-radius: 22px;
+      border: none;
+      background: var(--red);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.18s;
+    }
+    .confirm-btn:hover { background: var(--dark-red); }
+
+    /* File upload */
+    .upload-area {
+      border: 2px dashed var(--red);
+      border-radius: 12px;
+      padding: 22px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.18s;
+      position: relative;
+    }
+    .upload-area:hover { background: #fff0f0; }
+    .upload-area input[type=file] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+    .upload-icon { font-size: 28px; margin-bottom: 6px; }
+    .upload-text { font-size: 13px; color: #666; }
+    .upload-text strong { color: var(--red); }
+    .upload-note { font-size: 11px; color: #aaa; margin-top: 4px; }
+    .file-chosen {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #444;
+      background: #F5F5F5;
+      border-radius: 8px;
+      padding: 6px 10px;
+      display: none;
+    }
+    .upload-submit-btn {
+      margin-top: 10px;
+      width: 100%;
+      padding: 10px;
+      border-radius: 22px;
+      border: none;
+      background: var(--red);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: none;
+      transition: background 0.18s;
+    }
+    .upload-submit-btn:hover { background: var(--dark-red); }
+
+    /* Summary box */
+    .summary-box {
+      background: #fff8f8;
+      border: 2px solid #f0c0c0;
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #333;
+      line-height: 1.65;
+    }
+    .summary-box h4 {
+      color: var(--red);
+      font-size: 14px;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .summary-row { display: flex; gap: 6px; margin-bottom: 4px; }
+    .summary-label { font-weight: 600; flex-shrink: 0; min-width: 110px; }
+
+    /* Final submit */
+    .final-submit-btn {
+      width: 100%;
+      padding: 13px;
+      border-radius: 22px;
+      border: none;
+      background: linear-gradient(90deg, #8B0000, #C8102E);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: opacity 0.18s;
+      letter-spacing: 0.3px;
+    }
+    .final-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .final-submit-btn:hover:not(:disabled) { opacity: 0.9; }
+
+    /* Success / fail */
+    .result-card {
+      border-radius: 16px;
+      padding: 20px 18px;
+      text-align: center;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .result-card.pass {
+      background: #f0fff4;
+      border: 2px solid #48c774;
+    }
+    .result-card.fail {
+      background: #fff5f5;
+      border: 2px solid #f7a0b0;
+    }
+    .result-card .big-icon { font-size: 36px; margin-bottom: 8px; }
+    .result-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+
+    /* Powered by */
+    #footer {
+      text-align: center;
+      font-size: 10.5px;
+      color: #bbb;
+      padding: 6px 0 8px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Header -->
+  <div id="header">
+    <div id="header-avatar">🌟</div>
+    <div id="header-info">
+      <h2>PruVenture Apprentice</h2>
+      <span><span id="online-dot"></span>Pru Life UK · Career Assistant</span>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div id="progress-wrap">
+    <div id="progress-label">
+      <span>Application Progress</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div id="progress-bar-bg">
+      <div id="progress-bar-fill"></div>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div id="chat"></div>
+
+  <!-- Input -->
+  <div id="input-area"></div>
+
+  <div id="footer">Pru Life UK · PruVenture Apprentice Program</div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+const state = {
+  step: 0,
+  data: {
+    name: '', email: '', phone: '', age: '',
+    city: '', experience: '', graduate: '',
+    willingness: [], cvFile: null, cvFileName: ''
+  }
+};
+
+const TOTAL_STEPS = 9; // questionnaire steps only
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const chat = document.getElementById('chat');
+const inputArea = document.getElementById('input-area');
+
+function scrollBottom() {
+  setTimeout(() => chat.scrollTop = chat.scrollHeight, 80);
+}
+
+function setProgress(step) {
+  const pct = Math.min(Math.round((step / TOTAL_STEPS) * 100), 100);
+  document.getElementById('progress-bar-fill').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+}
+
+function addBubble(who, html, delay = 0) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      const row = document.createElement('div');
+      row.className = `bubble-row ${who}`;
+      if (who === 'bot') {
+        row.innerHTML = `<div class="bot-avatar">🤖</div><div class="bubble">${html}</div>`;
+      } else {
+        row.innerHTML = `<div class="bubble">${html}</div>`;
+      }
+      chat.appendChild(row);
+      scrollBottom();
+      resolve();
+    }, delay);
+  });
+}
+
+function showTyping() {
+  const row = document.createElement('div');
+  row.className = 'bubble-row bot';
+  row.id = 'typing-indicator';
+  row.innerHTML = `<div class="bot-avatar">🤖</div>
+    <div class="typing-bubble">
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+    </div>`;
+  chat.appendChild(row);
+  scrollBottom();
+}
+
+function removeTyping() {
+  const t = document.getElementById('typing-indicator');
+  if (t) t.remove();
+}
+
+async function botSay(html, typingMs = 900) {
+  showTyping();
+  await new Promise(r => setTimeout(r, typingMs));
+  removeTyping();
+  await addBubble('bot', html);
+}
+
+function clearInput() { inputArea.innerHTML = ''; }
+
+function showQuickReply(options) {
+  clearInput();
+  const wrap = document.createElement('div');
+  wrap.className = 'qr-wrap';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'qr-btn';
+    btn.textContent = opt.label;
+    btn.onclick = () => {
+      disableInput();
+      addBubble('user', opt.label);
+      opt.action();
+    };
+    wrap.appendChild(btn);
+  });
+  inputArea.appendChild(wrap);
+}
+
+function showTextInput(placeholder, onSubmit) {
+  clearInput();
+  const wrap = document.createElement('div');
+  wrap.className = 'text-input-wrap';
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.placeholder = placeholder;
+  inp.autofocus = true;
+  const btn = document.createElement('button');
+  btn.className = 'send-btn';
+  btn.innerHTML = '➤';
+  const submit = () => {
+    const val = inp.value.trim();
+    if (!val) return;
+    disableInput();
+    addBubble('user', val);
+    onSubmit(val);
+  };
+  btn.onclick = submit;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  wrap.appendChild(inp);
+  wrap.appendChild(btn);
+  inputArea.appendChild(wrap);
+  inp.focus();
+}
+
+function showCheckboxGroup(items, onConfirm) {
+  clearInput();
+  const wrap = document.createElement('div');
+  const grp = document.createElement('div');
+  grp.className = 'checkbox-group';
+  items.forEach(item => {
+    const lbl = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = item;
+    lbl.appendChild(cb);
+    lbl.append(' ' + item);
+    grp.appendChild(lbl);
+  });
+  const btn = document.createElement('button');
+  btn.className = 'confirm-btn';
+  btn.textContent = 'Confirm Selection';
+  btn.onclick = () => {
+    const checked = [...grp.querySelectorAll('input:checked')].map(c => c.value);
+    disableInput();
+    addBubble('user', checked.length ? checked.join(', ') : '(none selected)');
+    onConfirm(checked);
+  };
+  wrap.appendChild(grp);
+  wrap.appendChild(btn);
+  inputArea.appendChild(wrap);
+}
+
+function showFileUpload(onFile) {
+  clearInput();
+  const wrap = document.createElement('div');
+
+  const area = document.createElement('div');
+  area.className = 'upload-area';
+  area.innerHTML = `
+    <div class="upload-icon">📎</div>
+    <div class="upload-text"><strong>Click to upload</strong> your CV/Resume</div>
+    <div class="upload-note">Accepted: PDF, DOC, DOCX, JPG, PNG</div>
+  `;
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.pdf,.doc,.docx,.jpg,.jpeg,.png';
+  area.appendChild(fileInput);
+
+  const chosen = document.createElement('div');
+  chosen.className = 'file-chosen';
+
+  const submitBtn = document.createElement('button');
+  submitBtn.className = 'upload-submit-btn';
+  submitBtn.textContent = 'Upload & Continue ➤';
+
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files[0];
+    if (!f) return;
+    chosen.textContent = '📄 ' + f.name;
+    chosen.style.display = 'block';
+    submitBtn.style.display = 'block';
+    state.data.cvFile = f;
+    state.data.cvFileName = f.name;
+  });
+
+  submitBtn.onclick = () => {
+    if (!state.data.cvFile) return;
+    disableInput();
+    addBubble('user', `📄 ${state.data.cvFileName}`);
+    onFile(state.data.cvFile);
+  };
+
+  wrap.appendChild(area);
+  wrap.appendChild(chosen);
+  wrap.appendChild(submitBtn);
+  inputArea.appendChild(wrap);
+}
+
+function disableInput() {
+  inputArea.querySelectorAll('button, input').forEach(el => el.disabled = true);
+}
+
+// ─── Flow ─────────────────────────────────────────────────────────────────────
+async function start() {
+  await botSay(`👋 <strong>Hello! Welcome to Pru Life UK.</strong><br><br>
+I'm your PruVenture Apprentice career assistant. I'm here to help you apply for the <strong>PruVenture Apprentice Program</strong>!<br><br>
+Ready to explore a rewarding career in financial advisory? 🚀`, 1200);
+
+  showQuickReply([
+    { label: "Yes, let's go! 🎉", action: () => startQuestionnaire() },
+    { label: "Tell me more about PV Apprentice 📖", action: () => showMoreInfo() }
+  ]);
+}
+
+async function showMoreInfo() {
+  await botSay(`Great question! Here's everything you need to know about the program. 👇`, 800);
+  await botSay(`<strong>🌟 PruVenture Apprentice Program</strong><br><br>
+An <strong>18-month structured career development program</strong> of Pru Life UK designed for young professionals, fresh graduates, and career shifters who aspire to build a successful career in financial advisory — even without prior insurance experience.<br><br>
+<strong>Through this program, you will receive:</strong>
+<ul>
+  <li>Comprehensive training and mentorship</li>
+  <li>Financial planning and wealth management education</li>
+  <li>Sales and client acquisition skills development</li>
+  <li>Leadership and agency-building opportunities</li>
+  <li>Financial support during early career stages</li>
+  <li>💰 <strong>Bridging Income — ₱20K</strong> plus high commissions, incentives, bonuses, travel opportunities, and more</li>
+</ul><br>
+Ideal for individuals seeking a <strong>long-term career with unlimited income potential</strong> and professional growth.`, 1400);
+
+  await botSay(`Ready to take the next step? Fill out the form and send us your CV so we can proceed! 😊`, 600);
+
+  showQuickReply([
+    { label: "I'm interested, let's apply! 🙌", action: () => startQuestionnaire() }
+  ]);
+}
+
+async function startQuestionnaire() {
+  setProgress(0);
+  await botSay(`Awesome! Let's get started. I'll ask you a few quick questions. 📋<br><br>This will only take <strong>2–3 minutes</strong>.`, 800);
+  await askName();
+}
+
+// ── Step 1: Name
+async function askName() {
+  setProgress(1);
+  await botSay(`<strong>Step 1 of 9</strong> — What is your <strong>full name</strong>?`, 700);
+  showTextInput('e.g. Juan dela Cruz', val => {
+    state.data.name = val;
+    askEmail();
+  });
+}
+
+// ── Step 2: Email
+async function askEmail() {
+  setProgress(2);
+  await botSay(`Nice to meet you, <strong>${state.data.name}</strong>! 😊<br><br><strong>Step 2 of 9</strong> — What is your <strong>email address</strong>?`, 700);
+  showTextInput('e.g. juan@email.com', val => {
+    if (!val.includes('@')) {
+      addBubble('bot', '⚠️ That doesn\'t look like a valid email. Please try again.');
+      showTextInput('e.g. juan@email.com', val2 => {
+        state.data.email = val2;
+        askPhone();
+      });
+      return;
+    }
+    state.data.email = val;
+    askPhone();
+  });
+}
+
+// ── Step 3: Phone
+async function askPhone() {
+  setProgress(3);
+  await botSay(`<strong>Step 3 of 9</strong> — What is your <strong>phone number</strong>?`, 700);
+  showTextInput('e.g. 09171234567', val => {
+    state.data.phone = val;
+    askAge();
+  });
+}
+
+// ── Step 4: Age
+async function askAge() {
+  setProgress(4);
+  await botSay(`<strong>Step 4 of 9</strong> — What is your <strong>age range</strong>?`, 700);
+  showQuickReply([
+    { label: '22–25', action: () => { state.data.age = '22–25'; askCity(); } },
+    { label: '26–30', action: () => { state.data.age = '26–30'; askCity(); } },
+    { label: '31–35', action: () => { state.data.age = '31–35'; askCity(); } },
+    { label: '36–40', action: () => { state.data.age = '36–40'; askCity(); } },
+    { label: 'Other',  action: () => { state.data.age = 'Other'; askCity(); } },
+  ]);
+}
+
+// ── Step 5: City
+async function askCity() {
+  setProgress(5);
+  await botSay(`<strong>Step 5 of 9</strong> — What is your <strong>current city / location</strong>?`, 700);
+  showTextInput('e.g. Makati City', val => {
+    state.data.city = val;
+    askExperience();
+  });
+}
+
+// ── Step 6: Experience
+async function askExperience() {
+  setProgress(6);
+  await botSay(`<strong>Step 6 of 9</strong> — How many <strong>years of experience</strong> do you have in life insurance?`, 700);
+  showQuickReply([
+    { label: 'None / Fresh Graduate', action: () => { state.data.experience = 'None/Fresh Graduate'; askGraduate(); } },
+    { label: 'Less than 1 year',      action: () => { state.data.experience = 'Less than 1 year'; askGraduate(); } },
+    { label: '1–2 years',             action: () => { state.data.experience = '1–2 years'; askGraduate(); } },
+    { label: 'Close to 3 years',      action: () => { state.data.experience = 'Close to 3 years'; askGraduate(); } },
+    { label: 'More than 3 years',     action: () => { state.data.experience = 'More than 3 years'; askGraduate(); } },
+  ]);
+}
+
+// ── Step 7: Graduate
+async function askGraduate() {
+  setProgress(7);
+  await botSay(`<strong>Step 7 of 9</strong> — Are you a <strong>college graduate</strong>?`, 700);
+  showQuickReply([
+    { label: 'Yes ✅',      action: () => { state.data.graduate = 'Yes'; askWillingness(); } },
+    { label: 'Not yet 📚', action: () => { state.data.graduate = 'Not yet'; askWillingness(); } },
+    { label: 'No ❌',       action: () => { state.data.graduate = 'No'; askWillingness(); } },
+  ]);
+}
+
+// ── Step 8: Willingness
+async function askWillingness() {
+  setProgress(8);
+  await botSay(`<strong>Step 8 of 9</strong> — Please confirm the following (check all that apply):`, 700);
+  showCheckboxGroup([
+    'Willing to be trained',
+    'Willing to take licensure exams',
+    'Has stable internet connection'
+  ], vals => {
+    state.data.willingness = vals;
+    askCV();
+  });
+}
+
+// ── Step 9: CV Upload
+async function askCV() {
+  setProgress(9);
+  await botSay(`<strong>Step 9 of 9</strong> — Please upload your <strong>CV / Resume</strong>. 📄<br><br>Accepted formats: PDF, DOC, DOCX, JPG, PNG`, 700);
+  showFileUpload(file => {
+    showSummary();
+  });
+}
+
+// ── Summary
+async function showSummary() {
+  setProgress(9);
+  await botSay(`Almost done! Here's a <strong>summary of your application</strong>. Please review before submitting. 👇`, 800);
+
+  const willStr = state.data.willingness.length
+    ? state.data.willingness.join(', ')
+    : '(none selected)';
+
+  const summaryRow = (label, val) =>
+    `<div class="summary-row"><span class="summary-label">${label}</span><span>${val}</span></div>`;
+
+  const summaryHtml = `
+    <div class="summary-box">
+      <h4>📋 Application Summary</h4>
+      ${summaryRow('Full Name:', state.data.name)}
+      ${summaryRow('Email:', state.data.email)}
+      ${summaryRow('Phone:', state.data.phone)}
+      ${summaryRow('Age Range:', state.data.age)}
+      ${summaryRow('City:', state.data.city)}
+      ${summaryRow('Experience:', state.data.experience)}
+      ${summaryRow('Graduate:', state.data.graduate)}
+      ${summaryRow('Willingness:', willStr)}
+      ${summaryRow('CV File:', state.data.cvFileName)}
+    </div>`;
+
+  const row = document.createElement('div');
+  row.className = 'bubble-row bot';
+  row.innerHTML = `<div class="bot-avatar">🤖</div><div class="bubble" style="max-width:96%">${summaryHtml}</div>`;
+  chat.appendChild(row);
+  scrollBottom();
+
+  clearInput();
+
+  // Final submit button
+  const btn = document.createElement('button');
+  btn.className = 'final-submit-btn';
+  btn.textContent = '🚀 Submit Application';
+  btn.onclick = () => handleSubmit(btn);
+  inputArea.appendChild(btn);
+}
+
+// ── Eligibility + Submit
+function checkEligibility() {
+  const eligible22to40 = ['22–25','26–30','31–35','36–40'].includes(state.data.age);
+  const notOverExp = state.data.experience !== 'More than 3 years';
+  const isGrad = state.data.graduate === 'Yes';
+  return eligible22to40 && notOverExp && isGrad;
+}
+
+async function handleSubmit(btn) {
+  btn.disabled = true;
+  btn.textContent = '⏳ Submitting…';
+
+  if (!checkEligibility()) {
+    await showIneligible();
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('name', state.data.name);
+    formData.append('email', state.data.email);
+    formData.append('phone', state.data.phone);
+    formData.append('age', state.data.age);
+    formData.append('city', state.data.city);
+    formData.append('experience', state.data.experience);
+    formData.append('graduate', state.data.graduate);
+    formData.append('willingness', state.data.willingness.join(', '));
+    if (state.data.cvFile) formData.append('cv', state.data.cvFile);
+
+    const res = await fetch('/submit', { method: 'POST', body: formData });
+    const json = await res.json();
+
+    if (res.ok && json.success) {
+      await showSuccess(json.driveLink);
+    } else {
+      throw new Error(json.error || 'Submission failed');
+    }
+  } catch (err) {
+    clearInput();
+    await botSay(`⚠️ Something went wrong: <em>${err.message}</em><br><br>Please try again or contact us directly.`, 600);
+    const retry = document.createElement('button');
+    retry.className = 'final-submit-btn';
+    retry.textContent = '🔄 Retry Submission';
+    retry.onclick = () => handleSubmit(retry);
+    inputArea.appendChild(retry);
+  }
+}
+
+async function showSuccess(driveLink) {
+  clearInput();
+  setProgress(9);
+  const linkHtml = driveLink ? `<br><br><small>CV uploaded: <a href="${driveLink}" target="_blank" style="color:#48c774">View on Drive</a></small>` : '';
+  const card = `
+    <div class="result-card pass">
+      <div class="big-icon">🎉</div>
+      <h3>Application Received!</h3>
+      <p>Thank you, <strong>${state.data.name}</strong>! Your application has been successfully submitted to the <strong>PruVenture Apprentice Program</strong>.</p>
+      <br>
+      <p>A confirmation has been sent to <strong>${state.data.email}</strong>. Our team will reach out to you within <strong>2–3 business days</strong>.${linkHtml}</p>
+      <br>
+      <p style="font-size:12px;color:#888">Pru Life UK · PruVenture Apprentice</p>
+    </div>`;
+  const row = document.createElement('div');
+  row.className = 'bubble-row bot';
+  row.innerHTML = `<div class="bot-avatar">🤖</div><div class="bubble" style="max-width:96%">${card}</div>`;
+  chat.appendChild(row);
+  scrollBottom();
+  await botSay(`We're excited to review your application! 🌟 Best of luck, <strong>${state.data.name}</strong>!`, 600);
+}
+
+async function showIneligible() {
+  clearInput();
+  const card = `
+    <div class="result-card fail">
+      <div class="big-icon">💙</div>
+      <h3>Thank You for Your Interest</h3>
+      <p>We truly appreciate your enthusiasm for the <strong>PruVenture Apprentice Program</strong>.</p>
+      <br>
+      <p>Based on the current program criteria, we are looking for candidates who are <strong>22–40 years old</strong>, a <strong>college graduate</strong>, and with <strong>less than 3 years</strong> of insurance experience.</p>
+      <br>
+      <p>We encourage you to explore other opportunities with <strong>Pru Life UK</strong> in the future. Thank you and all the best! 🙏</p>
+    </div>`;
+  const row = document.createElement('div');
+  row.className = 'bubble-row bot';
+  row.innerHTML = `<div class="bot-avatar">🤖</div><div class="bubble" style="max-width:96%">${card}</div>`;
+  chat.appendChild(row);
+  scrollBottom();
+}
+
+// ── Init
+start();
+</script>
+</body>
+</html>
