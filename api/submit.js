@@ -3,6 +3,7 @@ const nodemailer = require('nodemailer');
 const formidable = require('formidable');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 module.exports.config = { api: { bodyParser: false } };
 
@@ -177,7 +178,7 @@ async function sendRecruiterNotification(fields, driveLink) {
 module.exports.default = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const form = formidable({ maxFileSize: 10 * 1024 * 1024 });
+  const form = formidable({ maxFileSize: 10 * 1024 * 1024, uploadDir: os.tmpdir(), keepExtensions: true });
 
   form.parse(req, async (err, fields, files) => {
     if (err) return res.status(400).json({ success: false, error: err.message });
