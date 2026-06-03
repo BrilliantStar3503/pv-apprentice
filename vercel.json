@@ -1,12 +1,6 @@
 {
   "version": 2,
-  "functions": {
-    "api/submit.js": {
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
-    { "source": "/submit", "destination": "/api/submit" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/submit", "destination": "/api/submit" }
   ]
 }
