@@ -4,7 +4,7 @@ const formidable = require('formidable');
 const fs = require('fs');
 const path = require('path');
 
-export const config = { api: { bodyParser: false } };
+module.exports.config = { api: { bodyParser: false } };
 
 // ─── Google Auth (Drive + Sheets) ────────────────────────────────────────────
 async function getAuthClient(scopes) {
@@ -86,7 +86,7 @@ async function appendToSheet(fields, driveLink) {
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: 'Sheet1!A:T',
+    range: 'Leads!A:T',
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [row] },
   });
@@ -174,7 +174,7 @@ async function sendRecruiterNotification(fields, driveLink) {
 }
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
-export default async function handler(req, res) {
+module.exports.default = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const form = formidable({ maxFileSize: 10 * 1024 * 1024 });
