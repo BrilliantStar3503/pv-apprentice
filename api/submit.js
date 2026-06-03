@@ -3,18 +3,18 @@ const nodemailer = require('nodemailer');
 const formidable = require('formidable');
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
-const { URLSearchParams } = require('url');
 
 export const config = { api: { bodyParser: false } };
 
-// ─── Google Drive ─────────────────────────────────────────────────────────────
-async function getDriveClient() {
+// ─── Google Auth (Drive + Sheets) ────────────────────────────────────────────
+async function getAuthClient(scopes) {
   const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-  const auth = new google.auth.GoogleAuth({
-    credentials: creds,
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  });
+  const auth = new google.auth.GoogleAuth({ credentials: creds, scopes });
+  return auth;
+}
+
+async function getDriveClient() {
+  const auth = await getAuthClient(['https://www.googleapis.com/auth/drive']);
   return google.drive({ version: 'v3', auth });
 }
 
@@ -45,30 +45,50 @@ async function uploadToDrive(filePath, fileName, mimeType, folderId) {
   return file.data.webViewLink;
 }
 
-// ─── Google Form ──────────────────────────────────────────────────────────────
-function submitToGoogleForm(fields) {
-  return new Promise((resolve) => {
-    const formUrl = process.env.GOOGLE_FORM_SUBMIT_URL;
-    if (!formUrl) return resolve(false);
-    const params = new URLSearchParams({
-      'entry.ENTRY_NAME':        fields.name,
-      'entry.ENTRY_EMAIL':       fields.email,
-      'entry.ENTRY_PHONE':       fields.phone,
-      'entry.ENTRY_AGE':         fields.age,
-      'entry.ENTRY_CITY':        fields.city,
-      'entry.ENTRY_EXPERIENCE':  fields.experience,
-      'entry.ENTRY_GRADUATE':    fields.graduate,
-      'entry.ENTRY_WILLINGNESS': fields.willingness,
-    });
-    const urlObj = new URL(formUrl);
-    const req = https.request({
-      hostname: urlObj.hostname,
-      path: urlObj.pathname + '?' + params.toString(),
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    }, () => resolve(true));
-    req.on('error', () => resolve(false));
-    req.end();
+// ─── Google Sheets ────────────────────────────────────────────────────────────
+async function appendToSheet(fields, driveLink) {
+  const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+  if (!spreadsheetId) return;
+
+  const auth = await getAuthClient(['https://www.googleapis.com/auth/spreadsheets']);
+  const sheets = google.sheets({ version: 'v4', auth });
+
+  const timestamp = new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' });
+  const cvLinkCell = driveLink ? `=HYPERLINK("${driveLink}","View CV")` : '—';
+
+  // Map to your exact CRM columns:
+  // Timestamp | Sender ID | Page ID | Message | User Type | Lead Status |
+  // Name | Phone | Email | Preferred Meeting | Area | Appointment Date |
+  // AI Response | Escalate | Escalation Reason | Status | Support Needed |
+  // crm_status | reason | Remarks
+  const row = [
+    timestamp,                          // Timestamp
+    '',                                 // Sender ID
+    'PV Apprentice Chatbot',            // Page ID
+    '',                                 // Message
+    'Applicant',                        // User Type
+    'New',                              // Lead Status
+    fields.name,                        // Name
+    fields.phone,                       // Phone
+    fields.email,                       // Email
+    '',                                 // Preferred Meeting
+    fields.city,                        // Area
+    '',                                 // Appointment Date
+    '',                                 // AI Response
+    '',                                 // Escalate
+    '',                                 // Escalation Reason
+    'Applied',                          // Status
+    `Age: ${fields.age} | Exp: ${fields.experience} | Graduate: ${fields.graduate} | ${fields.willingness || '—'}`, // Support Needed
+    'New Lead',                         // crm_status
+    '',                                 // reason
+    `CV: ${fields.cvFileName || '—'} | ${cvLinkCell}`, // Remarks
+  ];
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: 'Sheet1!A:T',
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: [row] },
   });
 }
 
@@ -193,7 +213,7 @@ export default async function handler(req, res) {
         fs.unlink(cvFile.filepath, () => {});
       }
 
-      await submitToGoogleForm(data);
+      await appendToSheet(data, driveLink);
       await sendApplicantConfirmation(data);
       await sendRecruiterNotification(data, driveLink);
 
