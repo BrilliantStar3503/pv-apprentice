@@ -46,7 +46,7 @@ async function uploadToDrive(filePath, fileName, mimeType) {
 
 // ─── Google Sheets ────────────────────────────────────────────────────────────
 async function appendToSheet(fields, driveLink) {
-  const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+  const spreadsheetId = process.env.GOOGLE_SHEET_ID || '1qMTRX8Vc5Tht5S7BsN7xhjwpwGAtmoM9tucLuHj99Mw';
   if (!spreadsheetId) return;
   const auth = await getAuthClient(['https://www.googleapis.com/auth/spreadsheets']);
   const sheets = google.sheets({ version: 'v4', auth });
@@ -202,11 +202,15 @@ module.exports = async (req, res) => {
       }
 
       // 2. Append to Google Sheets
+      console.log('Appending to sheet...');
       await appendToSheet(data, driveLink);
+      console.log('Sheet updated successfully');
 
       // 3. Send emails
+      console.log('Sending emails...');
       await sendApplicantEmail(data);
       await sendRecruiterEmail(data, driveLink);
+      console.log('Emails sent successfully');
 
       res.status(200).json({ success: true, driveLink });
     } catch (e) {
