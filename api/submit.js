@@ -2,15 +2,51 @@
 
 const { google } = require('googleapis');
 const nodemailer = require('nodemailer');
-const { IncomingForm } = require('formidable');
+const busboy = require('busboy');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+// ─── Parse multipart form ─────────────────────────────────────────────────────
+function parseForm(req) {
+  return new Promise((resolve, reject) => {
+    const fields = {};
+    let cvFile = null;
+
+    const bb = busboy({ headers: req.headers });
+
+    bb.on('field', (name, val) => { fields[name] = val; });
+
+    bb.on('file', (name, stream, info) => {
+      const { filename, mimeType } = info;
+      const tmpPath = path.join(os.tmpdir(), `cv_${Date.now()}${path.extname(filename)}`);
+      const writeStream = fs.createWriteStream(tmpPath);
+      stream.pipe(writeStream);
+      writeStream.on('finish', () => {
+        cvFile = { filepath: tmpPath, originalFilename: filename, mimetype: mimeType };
+      });
+      writeStream.on('error', reject);
+    });
+
+    bb.on('finish', () => resolve({ fields, cvFile }));
+    bb.on('error', reject);
+    req.pipe(bb);
+  });
+}
+
 // ─── Google Auth ──────────────────────────────────────────────────────────────
+function getCredentials() {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON env var is missing');
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON: ' + e.message);
+  }
+}
+
 async function getAuthClient(scopes) {
-  const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-  return new google.auth.GoogleAuth({ credentials: creds, scopes });
+  return new google.auth.GoogleAuth({ credentials: getCredentials(), scopes });
 }
 
 // ─── Google Drive ─────────────────────────────────────────────────────────────
@@ -47,43 +83,38 @@ async function uploadToDrive(filePath, fileName, mimeType) {
 // ─── Google Sheets ────────────────────────────────────────────────────────────
 async function appendToSheet(fields, driveLink) {
   const spreadsheetId = process.env.GOOGLE_SHEET_ID || '1qMTRX8Vc5Tht5S7BsN7xhjwpwGAtmoM9tucLuHj99Mw';
-  if (!spreadsheetId) return;
   const auth = await getAuthClient(['https://www.googleapis.com/auth/spreadsheets']);
   const sheets = google.sheets({ version: 'v4', auth });
   const timestamp = new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' });
   const cvLinkCell = driveLink ? `=HYPERLINK("${driveLink}","View CV")` : '—';
-
-  const check = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Leads!A1' });
-  if (!check.data.values) {
-    await sheets.spreadsheets.values.update({
-      spreadsheetId, range: 'Leads!A1', valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [['Timestamp','Sender ID','Page ID','Message','User Type','Lead Status','Name','Phone','Email','Preferred Meeting','Area','Appointment Date','AI Response','Escalate','Escalation Reason','Status','Support Needed','crm_status','reason','Remarks']] },
-    });
-  }
-
   const leadStatus = fields.qualified === 'No' ? 'Not Qualified' : 'Qualified';
   const remarks = [
     `CV: ${fields.cvFileName || '—'}`,
-    cvLinkCell,
+    driveLink ? cvLinkCell : '',
     fields.disqualifyRemarks ? `⚠️ ${fields.disqualifyRemarks}` : '',
   ].filter(Boolean).join(' | ');
 
   await sheets.spreadsheets.values.append({
-    spreadsheetId, range: 'Leads!A:T', valueInputOption: 'USER_ENTERED',
+    spreadsheetId,
+    range: 'Leads!A:T',
+    valueInputOption: 'USER_ENTERED',
     requestBody: { values: [[
       timestamp, '', 'PV Apprentice Chatbot', '', 'Applicant', leadStatus,
       fields.name, fields.phone, fields.email, '', fields.city, '', '', '', '',
       'Applied',
       `Age: ${fields.age} | Exp: ${fields.experience} | Graduate: ${fields.graduate} | ${fields.willingness || '—'}`,
-      'New Lead', '',
-      remarks,
+      'New Lead', '', remarks,
     ]] },
   });
+  console.log('✅ Sheet updated');
 }
 
-// ─── Email ────────────────────────────────────────────────────────────────────
+// ─── Emails ───────────────────────────────────────────────────────────────────
 function tr(label, value) {
-  return `<tr><td style="padding:7px 10px;background:#f9f9f9;font-weight:600;color:#444;width:140px;border-bottom:1px solid #eee">${label}</td><td style="padding:7px 10px;color:#333;border-bottom:1px solid #eee">${value}</td></tr>`;
+  return `<tr>
+    <td style="padding:7px 10px;background:#f9f9f9;font-weight:600;color:#444;width:140px;border-bottom:1px solid #eee">${label}</td>
+    <td style="padding:7px 10px;color:#333;border-bottom:1px solid #eee">${value}</td>
+  </tr>`;
 }
 
 function mailer() {
@@ -101,11 +132,11 @@ async function sendApplicantEmail(fields) {
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
       <div style="background:linear-gradient(135deg,#8B0000,#C8102E);padding:28px 32px;border-radius:12px 12px 0 0">
         <h1 style="color:#fff;margin:0;font-size:22px">🌟 Application Received!</h1>
-        <p style="color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:14px">Pru Life UK — PruVenture Apprentice Program</p>
+        <p style="color:rgba(255,255,255,0.85);margin:6px 0 0">Pru Life UK — PruVenture Apprentice Program</p>
       </div>
       <div style="background:#fff;padding:28px 32px;border:1px solid #eee;border-top:none;border-radius:0 0 12px 12px">
         <p>Dear <strong>${fields.name}</strong>,</p>
-        <p style="color:#555;line-height:1.7">Thank you for applying to the <strong>PruVenture Apprentice Program</strong>! We have received your application. Our team will review your submission and get back to you within <strong>2–3 business days</strong>.</p>
+        <p style="color:#555;line-height:1.7">Thank you for applying to the <strong>PruVenture Apprentice Program</strong>! Our team will review your submission and get back to you within <strong>2–3 business days</strong>.</p>
         <h3 style="color:#C8102E">📋 Your Application Details</h3>
         <table style="width:100%;border-collapse:collapse;font-size:14px">
           ${tr('Full Name', fields.name)}
@@ -122,6 +153,7 @@ async function sendApplicantEmail(fields) {
       </div>
     </div>`,
   });
+  console.log('✅ Applicant email sent to', fields.email);
 }
 
 async function sendRecruiterEmail(fields, driveLink) {
@@ -144,12 +176,15 @@ async function sendRecruiterEmail(fields, driveLink) {
           ${tr('Experience', fields.experience)}
           ${tr('Graduate', fields.graduate)}
           ${tr('Willingness', fields.willingness || '—')}
+          ${tr('Qualified', fields.qualified === 'No' ? '❌ Not Qualified' : '✅ Qualified')}
+          ${fields.disqualifyRemarks ? tr('Reason', fields.disqualifyRemarks) : ''}
           ${tr('CV File', fields.cvFileName || '—')}
           ${tr('CV Link', linkHtml)}
         </table>
       </div>
     </div>`,
   });
+  console.log('✅ Recruiter email sent');
 }
 
 // ─── Main Handler ─────────────────────────────────────────────────────────────
@@ -158,65 +193,57 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const form = new IncomingForm({
-    maxFileSize: 10 * 1024 * 1024,
-    uploadDir: os.tmpdir(),
-    keepExtensions: true,
-  });
+  let cvFile = null;
 
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      console.error('Form parse error:', err);
-      return res.status(400).json({ success: false, error: err.message });
-    }
+  try {
+    console.log('📨 Parsing form...');
+    const { fields, cvFile: uploadedFile } = await parseForm(req);
+    cvFile = uploadedFile;
 
-    const get = (v) => (Array.isArray(v) ? v[0] : v) || '';
     const data = {
-      name:               get(fields.name),
-      email:              get(fields.email),
-      phone:              get(fields.phone),
-      age:                get(fields.age),
-      city:               get(fields.city),
-      experience:         get(fields.experience),
-      graduate:           get(fields.graduate),
-      willingness:        get(fields.willingness),
-      qualified:          get(fields.qualified) || 'Yes',
-      disqualifyRemarks:  get(fields.disqualifyRemarks) || '',
-      cvFileName:         '',
+      name:              fields.name || '',
+      email:             fields.email || '',
+      phone:             fields.phone || '',
+      age:               fields.age || '',
+      city:              fields.city || '',
+      experience:        fields.experience || '',
+      graduate:          fields.graduate || '',
+      willingness:       fields.willingness || '',
+      qualified:         fields.qualified || 'Yes',
+      disqualifyRemarks: fields.disqualifyRemarks || '',
+      cvFileName:        cvFile ? cvFile.originalFilename : '',
     };
 
-    const cvFile = files.cv ? (Array.isArray(files.cv) ? files.cv[0] : files.cv) : null;
-    if (cvFile) data.cvFileName = cvFile.originalFilename || cvFile.newFilename;
+    console.log('📋 Form data:', data.name, data.email);
 
     let driveLink = null;
 
-    try {
-      // 1. Upload CV to Google Drive
-      if (cvFile && cvFile.filepath) {
-        const today = new Date().toISOString().split('T')[0];
-        const ext = path.extname(data.cvFileName);
-        const safeName = data.name.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_');
-        const driveName = `${safeName}_CV_${today}${ext}`;
-        driveLink = await uploadToDrive(cvFile.filepath, driveName, cvFile.mimetype || 'application/octet-stream');
-        fs.unlink(cvFile.filepath, () => {});
-      }
-
-      // 2. Append to Google Sheets
-      console.log('Appending to sheet...');
-      await appendToSheet(data, driveLink);
-      console.log('Sheet updated successfully');
-
-      // 3. Send emails
-      console.log('Sending emails...');
-      await sendApplicantEmail(data);
-      await sendRecruiterEmail(data, driveLink);
-      console.log('Emails sent successfully');
-
-      res.status(200).json({ success: true, driveLink });
-    } catch (e) {
-      console.error('Submission error:', e);
-      if (cvFile && cvFile.filepath) fs.unlink(cvFile.filepath, () => {});
-      res.status(500).json({ success: false, error: e.message });
+    // 1. Upload CV to Google Drive
+    if (cvFile) {
+      console.log('📁 Uploading CV to Drive...');
+      const today = new Date().toISOString().split('T')[0];
+      const ext = path.extname(data.cvFileName);
+      const safeName = data.name.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_');
+      const driveName = `${safeName}_CV_${today}${ext}`;
+      driveLink = await uploadToDrive(cvFile.filepath, driveName, cvFile.mimetype || 'application/octet-stream');
+      fs.unlink(cvFile.filepath, () => {});
     }
-  });
+
+    // 2. Append to Google Sheets
+    console.log('📊 Updating Google Sheet...');
+    await appendToSheet(data, driveLink);
+
+    // 3. Send emails
+    console.log('📧 Sending emails...');
+    await sendApplicantEmail(data);
+    await sendRecruiterEmail(data, driveLink);
+
+    console.log('🎉 All done!');
+    res.status(200).json({ success: true, driveLink });
+
+  } catch (e) {
+    console.error('❌ Error:', e.message);
+    if (cvFile && cvFile.filepath) fs.unlink(cvFile.filepath, () => {});
+    res.status(500).json({ success: false, error: e.message });
+  }
 };
