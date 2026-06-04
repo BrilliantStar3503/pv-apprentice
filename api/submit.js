@@ -2,7 +2,7 @@
 
 const { google } = require('googleapis');
 const nodemailer = require('nodemailer');
-const formidable = require('formidable');
+const { IncomingForm } = require('formidable');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -146,12 +146,12 @@ async function sendRecruiterEmail(fields, driveLink) {
 }
 
 // ─── Main Handler ─────────────────────────────────────────────────────────────
-module.exports = async function handler(req, res) {
+module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const form = formidable({
+  const form = new IncomingForm({
     maxFileSize: 10 * 1024 * 1024,
     uploadDir: os.tmpdir(),
     keepExtensions: true,
