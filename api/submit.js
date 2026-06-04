@@ -61,15 +61,22 @@ async function appendToSheet(fields, driveLink) {
     });
   }
 
+  const leadStatus = fields.qualified === 'No' ? 'Not Qualified' : 'Qualified';
+  const remarks = [
+    `CV: ${fields.cvFileName || '—'}`,
+    cvLinkCell,
+    fields.disqualifyRemarks ? `⚠️ ${fields.disqualifyRemarks}` : '',
+  ].filter(Boolean).join(' | ');
+
   await sheets.spreadsheets.values.append({
     spreadsheetId, range: 'Leads!A:T', valueInputOption: 'USER_ENTERED',
     requestBody: { values: [[
-      timestamp, '', 'PV Apprentice Chatbot', '', 'Applicant', 'New',
+      timestamp, '', 'PV Apprentice Chatbot', '', 'Applicant', leadStatus,
       fields.name, fields.phone, fields.email, '', fields.city, '', '', '', '',
       'Applied',
       `Age: ${fields.age} | Exp: ${fields.experience} | Graduate: ${fields.graduate} | ${fields.willingness || '—'}`,
       'New Lead', '',
-      `CV: ${fields.cvFileName || '—'} | ${cvLinkCell}`,
+      remarks,
     ]] },
   });
 }
@@ -165,15 +172,17 @@ module.exports = async (req, res) => {
 
     const get = (v) => (Array.isArray(v) ? v[0] : v) || '';
     const data = {
-      name:        get(fields.name),
-      email:       get(fields.email),
-      phone:       get(fields.phone),
-      age:         get(fields.age),
-      city:        get(fields.city),
-      experience:  get(fields.experience),
-      graduate:    get(fields.graduate),
-      willingness: get(fields.willingness),
-      cvFileName:  '',
+      name:               get(fields.name),
+      email:              get(fields.email),
+      phone:              get(fields.phone),
+      age:                get(fields.age),
+      city:               get(fields.city),
+      experience:         get(fields.experience),
+      graduate:           get(fields.graduate),
+      willingness:        get(fields.willingness),
+      qualified:          get(fields.qualified) || 'Yes',
+      disqualifyRemarks:  get(fields.disqualifyRemarks) || '',
+      cvFileName:         '',
     };
 
     const cvFile = files.cv ? (Array.isArray(files.cv) ? files.cv[0] : files.cv) : null;

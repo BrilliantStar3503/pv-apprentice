@@ -792,21 +792,26 @@ async function showSummary() {
 }
 
 // ── Eligibility + Submit
-function checkEligibility() {
+function getDisqualifyRemarks() {
+  const reasons = [];
   const eligible22to40 = ['22–25','26–30','31–35','36–40'].includes(state.data.age);
-  const notOverExp = state.data.experience !== 'More than 3 years';
-  const isGrad = state.data.graduate === 'Yes';
-  return eligible22to40 && notOverExp && isGrad;
+  if (!eligible22to40) reasons.push(`Over age / Age not within 22–40 (selected: ${state.data.age})`);
+  if (state.data.experience === 'More than 3 years') reasons.push('Over-experienced: More than 3 years in life insurance');
+  if (state.data.graduate === 'Not yet') reasons.push('Undergraduate: not yet a college graduate');
+  if (state.data.graduate === 'No') reasons.push('Not a college graduate');
+  return reasons;
+}
+
+function checkEligibility() {
+  return getDisqualifyRemarks().length === 0;
 }
 
 async function handleSubmit(btn) {
   btn.disabled = true;
   btn.textContent = '⏳ Submitting…';
 
-  if (!checkEligibility()) {
-    await showIneligible();
-    return;
-  }
+  const qualified = checkEligibility();
+  const remarks = getDisqualifyRemarks();
 
   try {
     const formData = new FormData();
@@ -818,13 +823,19 @@ async function handleSubmit(btn) {
     formData.append('experience', state.data.experience);
     formData.append('graduate', state.data.graduate);
     formData.append('willingness', state.data.willingness.join(', '));
+    formData.append('qualified', qualified ? 'Yes' : 'No');
+    formData.append('disqualifyRemarks', remarks.join('; '));
     if (state.data.cvFile) formData.append('cv', state.data.cvFile);
 
     const res = await fetch('/submit', { method: 'POST', body: formData });
     const json = await res.json();
 
     if (res.ok && json.success) {
-      await showSuccess(json.driveLink);
+      if (qualified) {
+        await showSuccess(json.driveLink);
+      } else {
+        await showIneligible();
+      }
     } else {
       throw new Error(json.error || 'Submission failed');
     }
